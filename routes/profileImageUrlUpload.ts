@@ -17,6 +17,19 @@ export function profileImageUrlUpload () {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (req.body.imageUrl !== undefined) {
       const url = req.body.imageUrl
+      // SSRF mitigation: allow only certain hostnames
+      const ALLOWED_HOSTS = ['images.example.com', 'cdn.example.org']
+      let parsedUrl: URL
+      try {
+        parsedUrl = new URL(url)
+      } catch (err) {
+        next(new Error('Invalid imageUrl provided'))
+        return
+      }
+      if (!ALLOWED_HOSTS.includes(parsedUrl.hostname)) {
+        next(new Error('Image URL host not permitted'))
+        return
+      }
       if (url.match(/(.)*solve\/challenges\/server-side(.)*/) !== null) req.app.locals.abused_ssrf_bug = true
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
